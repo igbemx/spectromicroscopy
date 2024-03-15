@@ -39,9 +39,13 @@ from __future__ import print_function
 
 import pkgutil, importlib, os, sys
 import numpy
+from scipy.interpolate import griddata
+import logging
 from .. import data_stack
 
 verbose = True
+
+file_plugins_logger = logging.getLogger("file_plugins_logger")
 
 # These variables declare the options that each plugin can claim the ability to handle
 actions = ['read','write']
@@ -106,6 +110,98 @@ for data_type in data_types:
     filter_list['read'][data_type] = ['Supported Formats ('+' '.join(supported_filters['read'][data_type])+')']+filter_list['read'][data_type]
     filter_list['read'][data_type].append('All files (*.*)')
 
+def interpolate_absdata(absdata, x_dist, y_dist):
+    x_values, y_values, _ = absdata.shape
+    absdata_dist_corr = numpy.zeros_like(absdata)
+
+    # Adjusting xx, yy generation to match the actual range of x_dist and y_dist
+    if x_dist.ndim == 1:
+        x_min, x_max = x_dist.min(), x_dist.max()
+    else:
+        x_min, x_max = x_dist[:, 0].min(), x_dist[:, 0].max()
+
+    if y_dist.ndim == 1:
+        y_min, y_max = y_dist.min(), y_dist.max()
+    else:
+        y_min, y_max = y_dist[:, 0].min(), y_dist[:, 0].max()
+
+    x = numpy.linspace(x_min, x_max, x_values)
+    y = numpy.linspace(y_min, y_max, y_values)
+    xx, yy = numpy.meshgrid(x, y)
+    points = numpy.column_stack((xx.ravel(), yy.ravel()))
+    
+    # Interpolation process
+    if x_dist.ndim == 1 and y_dist.ndim == 1:
+        xx_new, yy_new = numpy.meshgrid(x_dist, y_dist)
+        for i in range(absdata.shape[2]):
+            values = absdata[:, :, i].ravel()
+            absdata_dist_corr[:, :, i] = griddata(points, values, (xx_new, yy_new), method='cubic').reshape(x_values, y_values)
+    else:
+        for i in range(absdata.shape[2]):
+            if x_dist.ndim == 2:
+                x_min_i, x_max_i = x_dist[:, i].min(), x_dist[:, i].max()
+            if y_dist.ndim == 2:
+                y_min_i, y_max_i = y_dist[:, i].min(), y_dist[:, i].max()
+            
+            x_i = numpy.linspace(x_min_i, x_max_i, x_values)
+            y_i = numpy.linspace(y_min_i, y_max_i, y_values)
+            xx_new, yy_new = numpy.meshgrid(x_i, y_i)
+            
+            values = absdata[:, :, i].ravel()
+            absdata_dist_corr[:, :, i] = griddata(points, values, (xx_new, yy_new), method='cubic').reshape(x_values, y_values)
+
+    return absdata_dist_corr
+
+def interpolate_absdata_flat(absdata, x_dist, y_dist, flat=True):
+    x_values, y_values, _ = absdata.shape
+    absdata_dist_corr = numpy.zeros_like(absdata)
+
+    # Adjusting xx, yy generation to match the actual range of x_dist and y_dist
+    if x_dist.ndim == 1:
+        x_min, x_max = x_dist.min(), x_dist.max()
+    else:
+        x_min, x_max = x_dist[:, 0].min(), x_dist[:, 0].max()
+
+    if y_dist.ndim == 1:
+        y_min, y_max = y_dist.min(), y_dist.max()
+    else:
+        y_min, y_max = y_dist[:, 0].min(), y_dist[:, 0].max()
+
+    x = numpy.linspace(x_min, x_max, x_values)
+    y = numpy.linspace(y_min, y_max, y_values)
+    xx, yy = numpy.meshgrid(x, y)
+    grid_points = numpy.column_stack((xx.ravel(), yy.ravel()))
+    
+    # Interpolation process
+    if x_dist.ndim == 1 and y_dist.ndim == 1:
+        if flat:
+            xx_new = x_dist.reshape(absdata.shape[0], absdata.shape[1])
+            yy_new = y_dist.reshape(absdata.shape[0], absdata.shape[1])
+            original_points = numpy.column_stack((xx_new, yy_new))
+        else:
+            xx_new, yy_new = numpy.meshgrid(x_dist, y_dist)
+        for i in range(absdata.shape[2]):
+            # values = absdata[:, :, i].ravel()
+            values = absdata[:, :, i].T.reshape(-1)
+            # absdata_dist_corr[:, :, i] = griddata(points, values, (xx_new, yy_new), method='nearest').reshape(x_values, y_values)
+            # absdata_dist_corr[:, :, i] = griddata(original_points, values, grid_points, method='nearest').reshape(x_values, y_values)
+            absdata_dist_corr[:, :, i] = griddata((x_dist, y_dist), values, (xx, yy), method='nearest').reshape(x_values, y_values)
+    else:
+        for i in range(absdata.shape[2]):
+            if x_dist.ndim == 2:
+                x_min_i, x_max_i = x_dist[:, i].min(), x_dist[:, i].max()
+            if y_dist.ndim == 2:
+                y_min_i, y_max_i = y_dist[:, i].min(), y_dist[:, i].max()
+            
+            x_i = numpy.linspace(x_min_i, x_max_i, x_values)
+            y_i = numpy.linspace(y_min_i, y_max_i, y_values)
+            xx_new, yy_new = numpy.meshgrid(x_i, y_i)
+            
+            values = absdata[:, :, i].ravel()
+            absdata_dist_corr[:, :, i] = griddata(original_points, values, (xx_new, yy_new), method='cubic').reshape(x_values, y_values)
+
+    return absdata_dist_corr
+
 
 def load(filename, stack_object=None, plugin=None, selection=None, json=None):
     """
@@ -121,6 +217,7 @@ def load(filename, stack_object=None, plugin=None, selection=None, json=None):
             plugin.read(filename, stack_object, selection, json)
         elif len(selection) == 1:
             plugin.read(filename, stack_object, selection[0], json)
+            file_plugins_logger.info(f'stack_object.absdata.shape is: {stack_object.absdata.shape}')
         else:
             plugin.read(filename,stack_object,selection[0],json)
             temp_stack = data_stack.data(stack_object.data_struct)
@@ -133,11 +230,14 @@ def load(filename, stack_object=None, plugin=None, selection=None, json=None):
                     full_stack = numpy.pad(full_stack,((0,0),(0,temp_stack.absdata.shape[1]-full_stack.shape[1]),(0,0)), mode='constant',constant_values=0)
                 full_stack = numpy.vstack((full_stack,temp_stack.absdata))
             stack_object.absdata = full_stack
+            file_plugins_logger.info(f'stack_object.absdata.shape is: {stack_object.absdata.shape}')
             stack_object.x_dist = numpy.arange(full_stack.shape[0])
             stack_object.y_dist = numpy.arange(full_stack.shape[1])
             stack_object.n_cols = len(stack_object.x_dist)
             stack_object.n_rows = len(stack_object.y_dist)
-            return
+        absdata_interpolated = interpolate_absdata_flat(stack_object.absdata, stack_object.x_dist_instr, stack_object.y_dist_instr)
+        stack_object.absdata_interpolated = absdata_interpolated
+        return
 
 def save(filename, data_object, data_type, plugin=None):
     """

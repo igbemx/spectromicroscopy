@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# IDE specific files
+/.idea/
+*.suo
+*.sln
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+build/
+bin/
+obj/
+
+# Test results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*_i.c *_p.c *.ilk *.meta *.obj *.pch *.pdb *.pgc *.pgd *.rsp *.sbr *.tlb *.tli *.tlh *.tmp *.tmp_proj *.log *.vspscc *.vssscc .builds *.pidb *.log *.scc
+
+# Other potential clutter
+*.egg-info/
+*.pyc
+*.so
+dist/
+eggs/
+lib/
+local_lib/
+pip-wheel-metadata/
+build.bat
+build.sh
+.coverage
+coverage.xml
+requirements.txt
+
+# Windows detritus
+Thumbs.db
+ehthumbs.db
+
+# Jupyter
+*.ipynb
+*.png

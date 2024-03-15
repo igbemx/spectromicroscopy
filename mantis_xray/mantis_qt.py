@@ -20,6 +20,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import logging
+# Set the logging level (DEBUG for detailed information, INFO for general progress)
+logging.basicConfig(level=logging.INFO)
+
 import sys
 import os
 import time
@@ -16490,6 +16494,8 @@ class MainFrame(QtWidgets.QMainWindow):
                 JSONconvert = dlg.jsoncheck.isChecked()
             except UnboundLocalError:
                 print("DataChoiceDialog skipped")
+            
+            # Here the data are loaded
             file_plugins.load(filepath, stack_object=self.stk, plugin=plugin, selection=FileInternalSelection,json=JSONconvert)
             directory = os.path.dirname(str(filepath))
             self.page1.filename = os.path.basename(str(filepath))
@@ -17082,7 +17088,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
 """ ------------------------------------------------------------------------------------------------"""
 def main():
-
+    main_logger = logging.getLogger(__name__)
     app = QtWidgets.QApplication(sys.argv)
     #print('main', threading.get_ident())
     with open(qsspath, "r") as stylesheet:

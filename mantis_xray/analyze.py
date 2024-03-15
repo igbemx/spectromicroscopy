@@ -29,7 +29,8 @@ from scipy import optimize
 import scipy.signal
 
 import scipy as sp
-mmult = sp.dot
+#mmult = sp.dot # IB: doesn't work in my conda installation
+mmult = np.dot
 
 import warnings
 warnings.simplefilter('ignore', DeprecationWarning)

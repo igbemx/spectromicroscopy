@@ -61,6 +61,12 @@ def read(FileName,stack_object,selection=(0,0), *args, **kwargs):
         print("Can't find photon energy!")
     stack_object.x_dist = numpy.array(F[entry][detector]['sample_x'])
     stack_object.y_dist = numpy.array(F[entry][detector]['sample_y'])
+    # Reading the actual positions as measured by the interferometer
+    # These values should also be present in "detector" section, but they are currently not
+    stack_object.x_dist_instr = numpy.array(F[entry]['instrument']['sample_x']['data'])
+    stack_object.y_dist_instr = numpy.array(F[entry]['instrument']['sample_y']['data'])
+    stack_object.data_instr = numpy.array(F[entry]['instrument'][detector]['data'])
+    
     stack_object.data_dwell = numpy.array(F[entry][detector]['count_time'])
     stack_object.n_cols = len(stack_object.x_dist)
     stack_object.n_rows = len(stack_object.y_dist)
